@@ -64,7 +64,9 @@ print(preview['sheets'][0]['preview'])
 
 ### MCP工具使用（AI智能体）
 
-配置 Cursor 或 Claude Desktop（`~/.cursor/mcp.json` 或 `~/Library/Application Support/Claude/claude_desktop_config.json`）：
+#### 配置 Cursor
+
+编辑 `~/.cursor/mcp.json` 文件（如不存在则创建）：
 
 ```json
 {
@@ -73,10 +75,75 @@ print(preview['sheets'][0]['preview'])
       "command": "python",
       "args": [
         "-u",
-        "/path/to/TableParser/start_mcp_server.py"
+        "/path/to/your/project/TableParser/start_mcp_server.py"
       ],
       "env": {
-        "PYTHONPATH": "/path/to/TableParser"
+        "PYTHONPATH": "/path/to/your/project/TableParser"
+      }
+    }
+  }
+}
+```
+
+**注意事项：**
+- 将路径替换为你的实际项目路径（使用绝对路径）
+- macOS/Linux: `~/.cursor/mcp.json`
+- Windows: `%USERPROFILE%\.cursor\mcp.json`
+- 配置后需要重启 Cursor 或切换 MCP 开关
+
+**配置示例（macOS）：**
+
+```json
+{
+  "mcpServers": {
+    "table-parser": {
+      "command": "python",
+      "args": [
+        "-u",
+        "/Users/username/projects/TableParser/start_mcp_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/Users/username/projects/TableParser"
+      }
+    }
+  }
+}
+```
+
+**配置示例（Windows）：**
+
+```json
+{
+  "mcpServers": {
+    "table-parser": {
+      "command": "python",
+      "args": [
+        "-u",
+        "C:\\Users\\username\\projects\\TableParser\\start_mcp_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "C:\\Users\\username\\projects\\TableParser"
+      }
+    }
+  }
+}
+```
+
+#### 配置 Claude Desktop
+
+编辑 `~/Library/Application Support/Claude/claude_desktop_config.json`：
+
+```json
+{
+  "mcpServers": {
+    "table-parser": {
+      "command": "python",
+      "args": [
+        "-u",
+        "/path/to/your/project/TableParser/start_mcp_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/path/to/your/project/TableParser"
       }
     }
   }
