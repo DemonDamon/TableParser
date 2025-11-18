@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试图片公式高亮上下标</title>
+    <style>
+        body { font-family: "Microsoft YaHei", Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; background-color: white; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }
+        .metadata { background-color: #f0f7ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; vertical-align: top; }
+        th { background-color: #4a90e2; color: white; font-weight: bold; }
+        tbody tr:nth-child(even) { background-color: #f9f9f9; }
+        tbody tr:hover { background-color: #e8f4ff; }
+        td[rowspan], td[colspan] { background-color: #fff3cd; font-weight: 500; }
+        .shapes-section { background-color: #fff9e6; padding: 15px; border-left: 4px solid #ffa500; margin: 20px 0; }
+        .shapes-section h3 { color: #ff8c00; margin-top: 0; }
+        .shape-item { background-color: white; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: "Courier New", monospace; }
+        .shape-type { color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>测试图片公式高亮上下标</h1>
+        <div class="metadata">
+            <h3>📋 文件信息</h3>
+            <ul>
+                <li><strong>工作表数量：</strong>1个</li>
+                <li><strong>总行数：</strong>21行</li>
+                <li><strong>总列数：</strong>8列</li>
+                <li><strong>复杂度评分：</strong>21.5/100（simple）</li>
+            </ul>
+        </div>
+        <div class="shapes-section">
+            <h3>📐 文本框/形状内容（数学公式等）</h3>
+            <div class="shape-item">
+                <div class="shape-type">#1 textbox</div>
+                <div>cos𝛼+cos𝛽=2cos1/2(𝛼+𝛽)cos1/2(𝛼−𝛽)</div>
+            </div>
+            <div class="shape-item">
+                <div class="shape-type">#2 textbox</div>
+                <div>𝑓(𝑥)=𝑎_0+∑_𝑛=1^∞▒(𝑎_𝑛cos𝑛𝜋𝑥/𝐿+𝑏_𝑛sin𝑛𝜋𝑥/𝐿)</div>
+            </div>
+            <div class="shape-item">
+                <div class="shape-type">#3 textbox</div>
+                <div>(𝑥+𝑎)^𝑛=∑_𝑘=0^𝑛▒(𝑛¦𝑘)𝑥^𝑘𝑎^𝑛−𝑘</div>
+            </div>
+        </div>
+        <table>
+<caption>Sheet1</caption>
+<thead>
+<tr><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th></tr>
+</thead>
+<tbody>
+<tr><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt">无高亮加粗</td></tr>
+<tr><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="background-color: #FFFF00; font-weight: bold; font-size: 11.0pt">高亮加粗</td></tr>
+<tr><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td><td style="font-size: 24.0pt">80<sup>2</sup></td><td style="font-size: 24.0pt">80<sub>3</sub></td><td style="font-size: 11.0pt"></td><td style="font-size: 11.0pt"></td></tr>
+</tbody>
+</table>
+
+    </div>
+</body>
+</html>
