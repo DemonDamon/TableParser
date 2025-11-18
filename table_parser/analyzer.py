@@ -1,11 +1,25 @@
 """
 复杂度分析器模块
 
-实现表格复杂度智能分析功能，评估4个维度：
-1. 合并单元格复杂度（权重40%）
-2. 表头层级复杂度（权重30%）
-3. 数据结构复杂度（权重20%）
-4. 规模复杂度（权重10%）
+实现表格复杂度智能分析功能，评估4大类7个维度：
+
+**结构复杂度** (35%):
+  - 合并单元格复杂度 (25%)
+  - 表头层级复杂度 (10%)
+
+**数据复杂度** (35%):
+  - 公式/超链接 (15%)
+  - 数据透视表 (10%)
+  - 图表数量 (10%)
+
+**代码复杂度** (20%):
+  - VBA宏 (20%)
+
+**规模复杂度** (10%):
+  - 表格规模 (10%)
+
+基于业界研究改进（参考：荷兰国家档案馆Spreadsheet-Complexity-Analyser、
+Microsoft TableSense、Nanonets评估标准）
 """
 
 import logging
@@ -27,12 +41,28 @@ class ComplexityAnalyzer:
     根据多个维度评估表格复杂度，自动推荐最佳输出格式
     """
     
-    # 评分权重配置
-    WEIGHTS = {
-        "merged_cells": 0.40,  # 合并单元格：40%
-        "header_depth": 0.30,  # 表头层级：30%
-        "data_structure": 0.20,  # 数据结构：20%
-        "scale": 0.10,  # 表格规模：10%
+    # 动态权重配置（智能适应表格特征）
+    
+    # 基础权重：用于简单表格（无数据透视表/图表/VBA宏）
+    WEIGHTS_BASE = {
+        "merged_cells": 0.40,      # 合并单元格：40%（保持高权重）
+        "header_depth": 0.30,      # 表头层级：30%（保持高权重）
+        "data_structure": 0.20,    # 公式/超链接：20%
+        "pivot_tables": 0.0,       # 数据透视表：0%（不计入）
+        "charts": 0.0,             # 图表：0%（不计入）
+        "vba_macros": 0.0,         # VBA宏：0%（不计入）
+        "scale": 0.10,             # 表格规模：10%
+    }
+    
+    # 高级权重：用于复杂表格（有数据透视表/图表/VBA宏）
+    WEIGHTS_ADVANCED = {
+        "merged_cells": 0.25,      # 合并单元格：25%
+        "header_depth": 0.10,      # 表头层级：10%
+        "data_structure": 0.15,    # 公式/超链接：15%
+        "pivot_tables": 0.10,      # 数据透视表：10%
+        "charts": 0.10,            # 图表：10%
+        "vba_macros": 0.20,        # VBA宏：20%
+        "scale": 0.10,             # 表格规模：10%
     }
     
     # 复杂度等级阈值
@@ -63,6 +93,9 @@ class ComplexityAnalyzer:
                 "merged_cells": 0.0,
                 "header_depth": 0.0,
                 "data_structure": 0.0,
+                "pivot_tables": 0.0,
+                "charts": 0.0,
+                "vba_macros": 0.0,
                 "scale": 0.0,
             }
             
@@ -73,7 +106,15 @@ class ComplexityAnalyzer:
                 "merged_cells_count": 0,
                 "has_formulas": False,
                 "has_hyperlinks": False,
+                "pivot_tables_count": 0,
+                "charts_count": 0,
+                "has_vba_macros": False,
             }
+            
+            # 检测VBA宏（工作簿级别）
+            vba_score = self._calculate_vba_macros_score(workbook)
+            scores["vba_macros"] = vba_score
+            details["has_vba_macros"] = vba_score > 0
             
             # 遍历所有sheet，取最大值
             for sheet_name in workbook.sheetnames:
@@ -83,18 +124,28 @@ class ComplexityAnalyzer:
                 merged_score = self._calculate_merged_cells_score(sheet)
                 header_score = self._calculate_header_depth_score(sheet)
                 structure_score = self._calculate_data_structure_score(sheet)
+                pivot_score = self._calculate_pivot_tables_score(sheet)
+                chart_score = self._calculate_charts_score(sheet)
                 scale_score = self._calculate_scale_score(sheet)
                 
                 # 取各维度的最大值（最复杂的sheet决定整体复杂度）
                 scores["merged_cells"] = max(scores["merged_cells"], merged_score)
                 scores["header_depth"] = max(scores["header_depth"], header_score)
                 scores["data_structure"] = max(scores["data_structure"], structure_score)
+                scores["pivot_tables"] = max(scores["pivot_tables"], pivot_score)
+                scores["charts"] = max(scores["charts"], chart_score)
                 scores["scale"] = max(scores["scale"], scale_score)
                 
                 # 累计统计信息
                 details["total_rows"] += sheet.max_row
                 details["total_cols"] = max(details["total_cols"], sheet.max_column)
                 details["merged_cells_count"] += len(sheet.merged_cells.ranges)
+                
+                # 累计数据透视表和图表
+                if hasattr(sheet, '_pivots'):
+                    details["pivot_tables_count"] += len(sheet._pivots)
+                if hasattr(sheet, '_charts'):
+                    details["charts_count"] += len(sheet._charts)
             
             # 计算总分和等级
             total_score, level, recommended_format = self._calculate_total_score(scores)
@@ -289,11 +340,97 @@ class ComplexityAnalyzer:
         logger.debug(f"规模得分: {score:.1f} (单元格数: {total_cells})")
         return score
     
+    def _calculate_pivot_tables_score(self, sheet: Worksheet) -> float:
+        """
+        计算数据透视表复杂度（权重10%）
+        
+        评分规则：
+        - 无数据透视表: 0分
+        - 1个数据透视表: 40分
+        - 2-3个: 70分
+        - 4个及以上: 100分
+        """
+        try:
+            # 检测数据透视表
+            pivot_count = 0
+            if hasattr(sheet, '_pivots'):
+                pivot_count = len(sheet._pivots)
+            
+            if pivot_count == 0:
+                score = 0.0
+            elif pivot_count == 1:
+                score = 40.0
+            elif pivot_count <= 3:
+                score = 70.0
+            else:
+                score = 100.0
+            
+            logger.debug(f"数据透视表得分: {score:.1f} (数量: {pivot_count})")
+            return score
+        except Exception as e:
+            logger.debug(f"数据透视表检测失败: {e}")
+            return 0.0
+    
+    def _calculate_charts_score(self, sheet: Worksheet) -> float:
+        """
+        计算图表复杂度（权重10%）
+        
+        评分规则：
+        - 无图表: 0分
+        - 1-2个图表: 30分
+        - 3-5个: 60分
+        - 6个及以上: 100分
+        """
+        try:
+            # 检测图表
+            chart_count = 0
+            if hasattr(sheet, '_charts'):
+                chart_count = len(sheet._charts)
+            
+            if chart_count == 0:
+                score = 0.0
+            elif chart_count <= 2:
+                score = 30.0
+            elif chart_count <= 5:
+                score = 60.0
+            else:
+                score = 100.0
+            
+            logger.debug(f"图表得分: {score:.1f} (数量: {chart_count})")
+            return score
+        except Exception as e:
+            logger.debug(f"图表检测失败: {e}")
+            return 0.0
+    
+    def _calculate_vba_macros_score(self, workbook: Workbook) -> float:
+        """
+        计算VBA宏复杂度（权重20%）
+        
+        评分规则：
+        - 无VBA宏: 0分
+        - 有VBA宏: 100分（代码复杂度极高）
+        """
+        try:
+            # 检测VBA项目
+            has_macros = False
+            
+            # openpyxl的workbook对象有vba_archive属性表示存在宏
+            if hasattr(workbook, 'vba_archive') and workbook.vba_archive is not None:
+                has_macros = True
+            
+            score = 100.0 if has_macros else 0.0
+            
+            logger.debug(f"VBA宏得分: {score:.1f} (存在: {has_macros})")
+            return score
+        except Exception as e:
+            logger.debug(f"VBA宏检测失败: {e}")
+            return 0.0
+    
     def _calculate_total_score(
         self, scores: dict[str, float]
     ) -> tuple[float, ComplexityLevel, OutputFormat]:
         """
-        计算综合得分并确定复杂度等级
+        计算综合得分并确定复杂度等级（动态权重）
         
         Args:
             scores: 各维度得分
@@ -301,10 +438,33 @@ class ComplexityAnalyzer:
         Returns:
             (总分, 复杂度等级, 推荐格式)
         """
+        # 🎯 动态权重选择：检测高级特征是否存在
+        has_advanced_features = (
+            scores["pivot_tables"] > 0 or 
+            scores["charts"] > 0 or 
+            scores["vba_macros"] > 0
+        )
+        
+        if has_advanced_features:
+            # 使用高级权重（有数据透视表/图表/VBA宏）
+            weights = self.WEIGHTS_ADVANCED
+            weight_type = "高级权重"
+        else:
+            # 使用基础权重（纯结构复杂度表格）
+            weights = self.WEIGHTS_BASE
+            weight_type = "基础权重"
+        
         # 加权求和
         total = sum(
-            scores[key] * self.WEIGHTS[key]
-            for key in self.WEIGHTS.keys()
+            scores[key] * weights[key]
+            for key in weights.keys()
+        )
+        
+        logger.debug(
+            f"使用{weight_type}计算总分: {total:.1f} "
+            f"(数据透视表: {scores['pivot_tables']:.0f}, "
+            f"图表: {scores['charts']:.0f}, "
+            f"VBA宏: {scores['vba_macros']:.0f})"
         )
         
         # 确定等级和推荐格式
