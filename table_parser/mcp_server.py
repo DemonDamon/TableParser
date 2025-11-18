@@ -32,11 +32,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # 创建MCP服务器
-mcp = FastMCP(
-    name="TableParser",
-    version="1.0.0",
-    description="智能表格解析工具 - 支持Excel和CSV，自动选择最佳输出格式"
-)
+mcp = FastMCP("TableParser")
 
 # 初始化解析器
 parser = TableParser()
