@@ -460,7 +460,7 @@ TableParser 实现了业界领先的 **7维度动态评分系统**（基于荷�
 | **代码复杂度** (10%) | VBA宏 | 10% | VBA宏代码检测 |
 | **规模复杂度** (10%) | 表格规模 | 10% | 行列数、单元格总数 |
 
-### 🧠 动态权重工作原理
+### 动态权重工作原理
 
 ```
 解析表格
@@ -476,7 +476,7 @@ TableParser 实现了业界领先的 **7维度动态评分系统**（基于荷�
         - 权重：结构70% + 数据20% + 规模10%
 ```
 
-### 🏆 相比业界方案的优势
+### 相比业界方案的优势
 
 | 特性 | TableParser v1.2 | 荷兰档案馆方案 | 传统方案 |
 |------|-----------------|---------------|---------|
@@ -488,13 +488,13 @@ TableParser 实现了业界领先的 **7维度动态评分系统**（基于荷�
 | **动态权重** | ✅ **智能切换** | ❌ 固定权重 | ❌ |
 | 权重优化 | ✅ 科学分配 | ⚠️ 平均分配 | ❌ |
 
-### 📏 评分规则
+### 评分规则
 
 - **0-30分**：简单表格 → 推荐 **Markdown**（易读易编辑，Git友好）
 - **31-60分**：中等复杂 → 推荐 **Markdown**（可能有部分格式损失）
 - **61-100分**：复杂表格 → 强制 **HTML**（完整保留所有结构）
 
-#### 🎨 特殊规则（内容保真）
+#### 特殊规则（内容保真）
 
 **即使总分较低，如果检测到以下特征，也会强制推荐HTML：**
 - ✅ **有图片**（内容丰富度 ≥ 40分）→ 强制HTML（Markdown无法嵌入图片）
@@ -509,7 +509,7 @@ TableParser 实现了业界领先的 **7维度动态评分系统**（基于荷�
 → 强制推荐 HTML ✅（保留图片和样式）
 ```
 
-### 💡 典型案例（动态权重效果）
+### 典型案例（动态权重效果）
 
 #### 案例1：评审标准表（基础权重）
 ```python
@@ -555,7 +555,7 @@ TableParser 实现了业界领先的 **7维度动态评分系统**（基于荷�
 含VBA宏但不算复杂，因为用户可能只需要提取数据
 ```
 
-## 🏗️ 架构设计
+## 架构设计（简化版）
 
 ```
 用户
@@ -578,7 +578,7 @@ TableParser（主控制器）
       └─ get_preview
 ```
 
-## 🔧 高级用法
+## 高级用法
 
 ### 批量处理
 
@@ -675,7 +675,7 @@ TableParser/
 └── 技术方案.md            # 详细技术方案
 ```
 
-## ⚠️ 已知限制
+## 已知限制
 
 ### Excel对象限制（openpyxl技术限制）
 
@@ -706,7 +706,7 @@ TableParser/
 - 返回值中包含 `shapes_text`：文本框和形状中提取的所有文本（包括公式编辑器的文本表示）
 - 返回值中包含 `shapes_count`：形状对象数量
 
-## 🆚 与竞品对比
+## 与竞品对比
 
 | 特性 | TableParser v1.2 | RAGFlow | Dify | MinerU |
 |-----|-----------------|---------|------|--------|
@@ -721,7 +721,7 @@ TableParser/
 | MCP支持 | ✅ | ❌ | ❌ | ❌ |
 | 轻量级 | ✅ 最小依赖 | ⚠️ 重 | ✅ | ⚠️ 依赖MS |
 
-## 🎨 新功能详解 (v1.2)
+## 新功能详解 (v1.2)
 
 ### 1. 图片提取
 
@@ -807,7 +807,7 @@ for formula in result.metadata['percentage_formulas']:
 - ✅ 查找函数：VLOOKUP、HLOOKUP、INDEX、MATCH
 - ✅ 单元格引用追踪：A1、A1:B10、Sheet2!C3
 
-## 🔍 使用场景
+## 使用场景
 
 ### 1. 数据分析
 ```python
@@ -844,7 +844,7 @@ result = batch_parse(
 print(f"成功: {result['succeeded']}, 失败: {result['failed']}")
 ```
 
-## 📝 性能指标
+## 性能指标
 
 | 表格规模 | 解析时间 |
 |---------|---------|
@@ -852,16 +852,16 @@ print(f"成功: {result['succeeded']}, 失败: {result['failed']}")
 | 中表 (1000-10000行) | <5秒 |
 | 大表 (>10000行) | <30秒 |
 
-## 🛠️ 开发与测试
+## 开发与测试
 
 ### 快速测试
 
 ```bash
 # 测试导入
-python -c "from table_parser import TableParser; print('✅ 导入成功')"
+python -c "from table_parser import TableParser; print('导入成功')"
 
 # 测试解析
-python -c "from table_parser import TableParser; p = TableParser(); r = p.parse('tests/test_data.xlsx'); print(f'✅ 解析成功: {r.output_format}')"
+python -c "from table_parser import TableParser; p = TableParser(); r = p.parse('tests/test_data.xlsx'); print(f'解析成功: {r.output_format}')"
 ```
 
 ### 启动MCP服务器
@@ -880,15 +880,15 @@ python start_mcp_server.py --http --port 8765
 pytest tests/
 ```
 
-## 🤝 贡献
+## 贡献
 
 欢迎提交Issue和Pull Request！
 
-## 📄 许可证
+## 许可证
 
 Apache License 2.0
 
-## 🙏 致谢
+## 致谢
 
 本项目参考了以下开源项目的设计：
 - [RAGFlow](https://github.com/infiniflow/ragflow) - Excel解析三层容错机制
