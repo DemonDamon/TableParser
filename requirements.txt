@@ -5,3 +5,4 @@ fastmcp
 python-calamine
 chardet
 xlrd
+requests  # HTTP客户端测试（可选）
