@@ -1,0 +1,7 @@
+openpyxl
+pandas
+tabulate
+fastmcp
+python-calamine
+chardet
+xlrd

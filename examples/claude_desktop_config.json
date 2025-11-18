@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "table-parser": {
+      "command": "python",
+      "args": [
+        "-u",
+        "/Users/damon/Desktop/品质AI智能客服/TableParser/table_parser/mcp_server.py"
+      ],
+      "env": {
+        "PYTHONPATH": "/Users/damon/Desktop/品质AI智能客服/TableParser"
+      }
+    }
+  }
+}
+
