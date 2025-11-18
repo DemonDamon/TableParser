@@ -14,6 +14,7 @@ from .loader import FileLoader
 from .analyzer import ComplexityAnalyzer
 from .converter import FormatConverter
 from .utils.validation import validate_file_path, validate_output_format
+from .utils.image_extractor import ImageExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class TableParser:
         self.loader = FileLoader()
         self.analyzer = ComplexityAnalyzer()
         self.converter = FormatConverter()
+        self.image_extractor = ImageExtractor()
         logger.info("TableParser 初始化完成")
     
     def parse(
@@ -53,6 +55,8 @@ class TableParser:
                 - clean_illegal_chars: 清理非法字符 (默认True)
                 - preserve_styles: 保留样式 (默认False)
                 - include_empty_rows: 包含空行 (默认False)
+                - extract_images: 是否提取图片 (默认True)
+                - images_dir: 图片保存目录 (默认None，自动生成)
                 
         Returns:
             ParseResult: 解析结果对象
@@ -97,8 +101,42 @@ class TableParser:
             else:
                 logger.info(f"步骤 2/4: 跳过（用户指定格式: {output_format}）")
             
-            # 步骤3: 格式转换
-            logger.info(f"步骤 3/4: 转换为 {actual_format.upper()} 格式...")
+            # 步骤3: 提取图片（如果启用）
+            extracted_images = []
+            images_count = 0
+            extract_images = options.get("extract_images", True)
+            
+            if extract_images:
+                logger.info("步骤 3/5: 提取图片...")
+                
+                # 确定图片输出目录
+                images_dir = options.get("images_dir", None)
+                if images_dir:
+                    images_output_dir = Path(images_dir)
+                elif isinstance(file_path, (str, Path)):
+                    # 自动生成：Excel同目录下的images文件夹
+                    images_output_dir = None  # 由ImageExtractor自动处理
+                    source_path = Path(file_path) if isinstance(file_path, str) else file_path
+                else:
+                    # Base64输入，使用当前目录
+                    images_output_dir = Path("./images")
+                    source_path = None
+                
+                images_count, extracted_images = self.image_extractor.extract_images(
+                    workbook,
+                    output_dir=images_output_dir,
+                    file_path=source_path if isinstance(file_path, (str, Path)) else None
+                )
+                
+                if images_count > 0:
+                    logger.info(f"✅ 提取了 {images_count} 张图片")
+                else:
+                    logger.info("📝 未检测到图片")
+            else:
+                logger.info("步骤 3/5: 跳过图片提取（用户禁用）")
+            
+            # 步骤4: 格式转换
+            logger.info(f"步骤 4/5: 转换为 {actual_format.upper()} 格式...")
             if actual_format == "markdown":
                 content = self.converter.to_markdown(
                     workbook,
@@ -112,9 +150,14 @@ class TableParser:
                     include_empty_rows=parse_options.include_empty_rows
                 )
             
-            # 步骤4: 构建结果
-            logger.info("步骤 4/4: 构建解析结果...")
+            # 步骤5: 构建结果
+            logger.info("步骤 5/5: 构建解析结果...")
             metadata = self.converter.get_workbook_metadata(workbook)
+            
+            # 添加图片信息到元数据
+            if extracted_images:
+                metadata["extracted_images"] = extracted_images
+                metadata["images_count"] = images_count
             
             result = ParseResult(
                 success=True,

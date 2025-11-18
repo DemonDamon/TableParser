@@ -95,7 +95,9 @@ def parse_table(
     output_format: str = "auto",
     chunk_rows: int = 256,
     clean_illegal_chars: bool = True,
-    output_path: Optional[str] = None
+    output_path: Optional[str] = None,
+    extract_images: bool = True,
+    images_dir: Optional[str] = None
 ) -> dict:
     """
     解析Excel或CSV表格文件
@@ -110,6 +112,10 @@ def parse_table(
             - 如果提供：保存到指定路径
             - 如果不提供且有file_path：默认保存到Excel同目录（自动节省token）
             - 如果不提供且是Base64输入：返回完整内容
+        extract_images: 是否提取Excel中的图片（默认True）
+        images_dir: 图片保存目录（可选）
+            - 如果提供：保存到指定目录
+            - 如果不提供：自动保存到Excel同目录的images文件夹
         
     Returns:
         解析结果字典。保存文件时只返回元数据，不返回完整内容（大幅节省token）
@@ -175,7 +181,9 @@ def parse_table(
             input_data,
             output_format=output_format,
             chunk_rows=chunk_rows,
-            clean_illegal_chars=clean_illegal_chars
+            clean_illegal_chars=clean_illegal_chars,
+            extract_images=extract_images,
+            images_dir=images_dir
         )
         
         # 确定输出路径
@@ -416,8 +424,12 @@ def batch_parse(
                         "error": "文件路径不在允许的目录中"
                     }
                 
-                # 解析文件
-                result = parser.parse(file_path, output_format=output_format)
+                # 解析文件（默认提取图片）
+                result = parser.parse(
+                    file_path, 
+                    output_format=output_format,
+                    extract_images=True
+                )
                 
                 if not result.success:
                     return {

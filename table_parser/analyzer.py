@@ -30,6 +30,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from .types import ComplexityScore, ComplexityLevel, OutputFormat
 from .exceptions import ComplexityAnalysisError
+from .utils.image_extractor import ImageExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,10 @@ class ComplexityAnalyzer:
     
     根据多个维度评估表格复杂度，自动推荐最佳输出格式
     """
+    
+    def __init__(self):
+        """初始化分析器"""
+        self.image_extractor = ImageExtractor()
     
     # 动态权重配置（智能适应表格特征）
     
@@ -109,12 +114,16 @@ class ComplexityAnalyzer:
                 "pivot_tables_count": 0,
                 "charts_count": 0,
                 "has_vba_macros": False,
+                "images_count": 0,  # 图片数量
             }
             
             # 检测VBA宏（工作簿级别）
             vba_score = self._calculate_vba_macros_score(workbook)
             scores["vba_macros"] = vba_score
             details["has_vba_macros"] = vba_score > 0
+            
+            # 统计图片数量（工作簿级别）
+            details["images_count"] = self.image_extractor.count_images(workbook)
             
             # 遍历所有sheet，取最大值
             for sheet_name in workbook.sheetnames:
