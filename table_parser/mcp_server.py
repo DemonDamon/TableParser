@@ -97,7 +97,8 @@ def parse_table(
     clean_illegal_chars: bool = True,
     output_path: Optional[str] = None,
     extract_images: bool = True,
-    images_dir: Optional[str] = None
+    images_dir: Optional[str] = None,
+    preserve_styles: bool = False
 ) -> dict:
     """
     解析Excel或CSV表格文件
@@ -116,6 +117,9 @@ def parse_table(
         images_dir: 图片保存目录（可选）
             - 如果提供：保存到指定目录
             - 如果不提供：自动保存到Excel同目录的images文件夹
+        preserve_styles: 是否保留单元格样式（默认False）
+            - True: 保留背景色、字体颜色、高亮等样式
+            - False: 仅保留内容，不保留样式
         
     Returns:
         解析结果字典。保存文件时只返回元数据，不返回完整内容（大幅节省token）
@@ -183,7 +187,8 @@ def parse_table(
             chunk_rows=chunk_rows,
             clean_illegal_chars=clean_illegal_chars,
             extract_images=extract_images,
-            images_dir=images_dir
+            images_dir=images_dir,
+            preserve_styles=preserve_styles
         )
         
         # 确定输出路径
@@ -242,6 +247,10 @@ def parse_table(
                     html_parts.append('        tbody tr:nth-child(even) { background-color: #f9f9f9; }')
                     html_parts.append('        tbody tr:hover { background-color: #e8f4ff; }')
                     html_parts.append('        td[rowspan], td[colspan] { background-color: #fff3cd; font-weight: 500; }')
+                    html_parts.append('        .shapes-section { background-color: #fff9e6; padding: 15px; border-left: 4px solid #ffa500; margin: 20px 0; }')
+                    html_parts.append('        .shapes-section h3 { color: #ff8c00; margin-top: 0; }')
+                    html_parts.append('        .shape-item { background-color: white; padding: 10px; margin: 10px 0; border-radius: 5px; font-family: "Courier New", monospace; }')
+                    html_parts.append('        .shape-type { color: #666; font-size: 12px; }')
                     html_parts.append('    </style>')
                     html_parts.append('</head>')
                     html_parts.append('<body>')
@@ -261,6 +270,17 @@ def parse_table(
                         if result.complexity_score:
                             html_parts.append(f'                <li><strong>复杂度评分：</strong>{result.complexity_score.total_score:.1f}/100（{result.complexity_score.level}）</li>')
                         html_parts.append('            </ul>')
+                        html_parts.append('        </div>')
+                    
+                    # 添加文本框/形状内容（如果有）
+                    if result.metadata.get("shapes_text"):
+                        html_parts.append('        <div class="shapes-section">')
+                        html_parts.append('            <h3>📐 文本框/形状内容（数学公式等）</h3>')
+                        for idx, shape in enumerate(result.metadata["shapes_text"], 1):
+                            html_parts.append(f'            <div class="shape-item">')
+                            html_parts.append(f'                <div class="shape-type">#{idx} {shape.get("type", "unknown")}</div>')
+                            html_parts.append(f'                <div>{shape.get("text", "")}</div>')
+                            html_parts.append(f'            </div>')
                         html_parts.append('        </div>')
                     
                     # 添加表格内容

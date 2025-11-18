@@ -15,6 +15,7 @@ from .analyzer import ComplexityAnalyzer
 from .converter import FormatConverter
 from .utils.validation import validate_file_path, validate_output_format
 from .utils.image_extractor import ImageExtractor
+from .utils.xml_shape_parser import XMLShapeParser
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class TableParser:
         self.analyzer = ComplexityAnalyzer()
         self.converter = FormatConverter()
         self.image_extractor = ImageExtractor()
+        self.xml_shape_parser = XMLShapeParser()
         logger.info("TableParser 初始化完成")
     
     def parse(
@@ -83,7 +85,7 @@ class TableParser:
             )
             
             # 步骤1: 加载文件
-            logger.info("步骤 1/4: 加载文件...")
+            logger.info("步骤 1/6: 加载文件...")
             workbook = self.loader.load(file_path)
             
             # 步骤2: 分析复杂度（如果是auto模式）
@@ -91,7 +93,7 @@ class TableParser:
             actual_format = output_format
             
             if output_format == "auto":
-                logger.info("步骤 2/4: 分析复杂度...")
+                logger.info("步骤 2/6: 分析复杂度...")
                 complexity_score = self.analyzer.analyze(workbook)
                 actual_format = complexity_score.recommended_format
                 logger.info(
@@ -99,7 +101,7 @@ class TableParser:
                     f"(复杂度: {complexity_score.level}, 得分: {complexity_score.total_score:.1f})"
                 )
             else:
-                logger.info(f"步骤 2/4: 跳过（用户指定格式: {output_format}）")
+                logger.info(f"步骤 2/6: 跳过（用户指定格式: {output_format}）")
             
             # 步骤3: 提取图片（如果启用）
             extracted_images = []
@@ -107,7 +109,7 @@ class TableParser:
             extract_images = options.get("extract_images", True)
             
             if extract_images:
-                logger.info("步骤 3/5: 提取图片...")
+                logger.info("步骤 3/6: 提取图片...")
                 
                 # 确定图片输出目录
                 images_dir = options.get("images_dir", None)
@@ -133,31 +135,48 @@ class TableParser:
                 else:
                     logger.info("📝 未检测到图片")
             else:
-                logger.info("步骤 3/5: 跳过图片提取（用户禁用）")
+                logger.info("步骤 3/6: 跳过图片提取（用户禁用）")
+            
+            # 步骤3.5: 提取文本框/形状中的文本（XML解析）
+            shapes_text = []
+            if isinstance(file_path, (str, Path)):
+                logger.info("步骤 3.5/6: 提取文本框/形状文本...")
+                source_path = Path(file_path) if isinstance(file_path, str) else file_path
+                shapes_text = self.xml_shape_parser.extract_shapes_from_excel(str(source_path))
+                if shapes_text:
+                    logger.info(f"✅ 提取了 {len(shapes_text)} 个形状对象的文本")
             
             # 步骤4: 格式转换
-            logger.info(f"步骤 4/5: 转换为 {actual_format.upper()} 格式...")
+            logger.info(f"步骤 4/6: 转换为 {actual_format.upper()} 格式...")
             if actual_format == "markdown":
                 content = self.converter.to_markdown(
                     workbook,
                     include_empty_rows=parse_options.include_empty_rows
                 )
             else:  # html
+                # 传入文件路径用于富文本解析
+                excel_file_path = str(file_path) if isinstance(file_path, (str, Path)) else None
                 content = self.converter.to_html(
                     workbook,
                     chunk_rows=parse_options.chunk_rows,
                     preserve_styles=parse_options.preserve_styles,
-                    include_empty_rows=parse_options.include_empty_rows
+                    include_empty_rows=parse_options.include_empty_rows,
+                    excel_path=excel_file_path
                 )
             
             # 步骤5: 构建结果
-            logger.info("步骤 5/5: 构建解析结果...")
+            logger.info("步骤 5/6: 构建解析结果...")
             metadata = self.converter.get_workbook_metadata(workbook)
             
             # 添加图片信息到元数据
             if extracted_images:
                 metadata["extracted_images"] = extracted_images
                 metadata["images_count"] = images_count
+            
+            # 添加形状文本信息到元数据
+            if shapes_text:
+                metadata["shapes_text"] = shapes_text
+                metadata["shapes_count"] = len(shapes_text)
             
             result = ParseResult(
                 success=True,

@@ -31,6 +31,8 @@ from openpyxl.worksheet.worksheet import Worksheet
 from .types import ComplexityScore, ComplexityLevel, OutputFormat
 from .exceptions import ComplexityAnalysisError
 from .utils.image_extractor import ImageExtractor
+from .utils.formula_analyzer import FormulaAnalyzer
+from .utils.xml_shape_parser import XMLShapeParser
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +47,17 @@ class ComplexityAnalyzer:
     def __init__(self):
         """初始化分析器"""
         self.image_extractor = ImageExtractor()
+        self.formula_analyzer = FormulaAnalyzer()
+        self.xml_shape_parser = XMLShapeParser()
     
     # 动态权重配置（智能适应表格特征）
     
     # 基础权重：用于简单表格（无数据透视表/图表/VBA宏）
     WEIGHTS_BASE = {
-        "merged_cells": 0.40,      # 合并单元格：40%（保持高权重）
-        "header_depth": 0.30,      # 表头层级：30%（保持高权重）
-        "data_structure": 0.20,    # 公式/超链接：20%
+        "merged_cells": 0.35,      # 合并单元格：35%
+        "header_depth": 0.25,      # 表头层级：25%
+        "data_structure": 0.15,    # 公式/超链接：15%
+        "content_richness": 0.15,  # 内容丰富度：15%（图片、样式等）
         "pivot_tables": 0.0,       # 数据透视表：0%（不计入）
         "charts": 0.0,             # 图表：0%（不计入）
         "vba_macros": 0.0,         # VBA宏：0%（不计入）
@@ -61,12 +66,13 @@ class ComplexityAnalyzer:
     
     # 高级权重：用于复杂表格（有数据透视表/图表/VBA宏）
     WEIGHTS_ADVANCED = {
-        "merged_cells": 0.25,      # 合并单元格：25%
+        "merged_cells": 0.20,      # 合并单元格：20%
         "header_depth": 0.10,      # 表头层级：10%
         "data_structure": 0.15,    # 公式/超链接：15%
-        "pivot_tables": 0.10,      # 数据透视表：10%
+        "content_richness": 0.10,  # 内容丰富度：10%
+        "pivot_tables": 0.15,      # 数据透视表：15%
         "charts": 0.10,            # 图表：10%
-        "vba_macros": 0.20,        # VBA宏：20%
+        "vba_macros": 0.10,        # VBA宏：10%
         "scale": 0.10,             # 表格规模：10%
     }
     
@@ -98,6 +104,7 @@ class ComplexityAnalyzer:
                 "merged_cells": 0.0,
                 "header_depth": 0.0,
                 "data_structure": 0.0,
+                "content_richness": 0.0,  # 内容丰富度（图片、样式等）
                 "pivot_tables": 0.0,
                 "charts": 0.0,
                 "vba_macros": 0.0,
@@ -115,6 +122,9 @@ class ComplexityAnalyzer:
                 "charts_count": 0,
                 "has_vba_macros": False,
                 "images_count": 0,  # 图片数量
+                "formulas_count": 0,  # 公式总数
+                "aggregate_formulas": [],  # 聚合公式（合计等）
+                "percentage_formulas": [],  # 百分比公式
             }
             
             # 检测VBA宏（工作簿级别）
@@ -133,6 +143,7 @@ class ComplexityAnalyzer:
                 merged_score = self._calculate_merged_cells_score(sheet)
                 header_score = self._calculate_header_depth_score(sheet)
                 structure_score = self._calculate_data_structure_score(sheet)
+                richness_score = self._calculate_content_richness_score(sheet, workbook)
                 pivot_score = self._calculate_pivot_tables_score(sheet)
                 chart_score = self._calculate_charts_score(sheet)
                 scale_score = self._calculate_scale_score(sheet)
@@ -141,6 +152,7 @@ class ComplexityAnalyzer:
                 scores["merged_cells"] = max(scores["merged_cells"], merged_score)
                 scores["header_depth"] = max(scores["header_depth"], header_score)
                 scores["data_structure"] = max(scores["data_structure"], structure_score)
+                scores["content_richness"] = max(scores["content_richness"], richness_score)
                 scores["pivot_tables"] = max(scores["pivot_tables"], pivot_score)
                 scores["charts"] = max(scores["charts"], chart_score)
                 scores["scale"] = max(scores["scale"], scale_score)
@@ -155,6 +167,16 @@ class ComplexityAnalyzer:
                     details["pivot_tables_count"] += len(sheet._pivots)
                 if hasattr(sheet, '_charts'):
                     details["charts_count"] += len(sheet._charts)
+                
+                # 分析公式依赖关系
+                formula_deps = self.formula_analyzer.analyze_sheet_dependencies(sheet)
+                if formula_deps["formulas_count"] > 0:
+                    details["formulas_count"] += formula_deps["formulas_count"]
+                    details["has_formulas"] = True
+                    
+                    # 合并聚合公式和百分比公式（保留前10个）
+                    details["aggregate_formulas"].extend(formula_deps["aggregate_cells"][:10])
+                    details["percentage_formulas"].extend(formula_deps["percentage_cells"][:10])
             
             # 计算总分和等级
             total_score, level, recommended_format = self._calculate_total_score(scores)
@@ -349,6 +371,61 @@ class ComplexityAnalyzer:
         logger.debug(f"规模得分: {score:.1f} (单元格数: {total_cells})")
         return score
     
+    def _calculate_content_richness_score(self, sheet: Worksheet, workbook: Workbook) -> float:
+        """
+        计算内容丰富度（权重15%）
+        
+        评分规则：
+        - 纯文本: 0分
+        - 有图片: +40分
+        - 有样式（高亮/背景色）: +30分
+        - 有富文本（上下标等）: +30分
+        """
+        score = 0.0
+        
+        # 检测图片
+        has_images = False
+        if hasattr(sheet, '_images') and sheet._images:
+            has_images = True
+            score += 40.0
+        
+        # 采样检查样式和富文本（前20行）
+        max_sample_rows = min(20, sheet.max_row)
+        has_styles = False
+        has_rich_text = False
+        
+        for row in sheet.iter_rows(max_row=max_sample_rows):
+            for cell in row:
+                # 检测背景色/高亮
+                if cell.fill and cell.fill.patternType and cell.fill.patternType != 'none':
+                    has_styles = True
+                
+                # 检测富文本（上下标等）
+                if hasattr(cell, 'value') and hasattr(cell.value, '__iter__') and not isinstance(cell.value, str):
+                    has_rich_text = True
+                
+                # 检测字体颜色/粗体等
+                if cell.font:
+                    if (cell.font.color and hasattr(cell.font.color, 'rgb')) or \
+                       (hasattr(cell.font, 'vertAlign') and cell.font.vertAlign):
+                        has_rich_text = True
+                
+                # 提前退出
+                if has_styles and has_rich_text:
+                    break
+        
+        if has_styles:
+            score += 30.0
+        
+        if has_rich_text:
+            score += 30.0
+        
+        logger.debug(
+            f"内容丰富度得分: {score:.1f} "
+            f"(图片: {has_images}, 样式: {has_styles}, 富文本: {has_rich_text})"
+        )
+        return min(100.0, score)
+    
     def _calculate_pivot_tables_score(self, sheet: Worksheet) -> float:
         """
         计算数据透视表复杂度（权重10%）
@@ -473,7 +550,8 @@ class ComplexityAnalyzer:
             f"使用{weight_type}计算总分: {total:.1f} "
             f"(数据透视表: {scores['pivot_tables']:.0f}, "
             f"图表: {scores['charts']:.0f}, "
-            f"VBA宏: {scores['vba_macros']:.0f})"
+            f"VBA宏: {scores['vba_macros']:.0f}, "
+            f"内容丰富度: {scores['content_richness']:.0f})"
         )
         
         # 确定等级和推荐格式
@@ -486,6 +564,12 @@ class ComplexityAnalyzer:
         else:
             level = "complex"
             recommended = "html"
+        
+        # 🎨 特殊规则：如果有丰富内容（图片/样式/富文本），强制推荐HTML
+        # 原因：Markdown无法展示这些内容，会丢失重要信息
+        if scores['content_richness'] >= 40:  # 有图片或样式
+            recommended = "html"
+            logger.debug(f"检测到丰富内容（得分{scores['content_richness']:.0f}），强制推荐HTML以保留样式和图片")
         
         return total, level, recommended
 
