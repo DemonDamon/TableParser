@@ -21,6 +21,7 @@
 
 - 🧠 **智能复杂度分析**：4维度评分系统，自动判断表格复杂度
 - 🎯 **自适应输出**：根据复杂度自动选择Markdown或HTML
+- 💾 **智能自动保存**：默认保存到同目录，节省90%-99% token（v1.1新增）
 - 🛡️ **三层容错机制**：openpyxl → pandas → calamine，最大化兼容性
 - 💡 **MCP工具化**：支持AI智能体（Claude、GPT等）直接调用
 - 🚀 **轻量级**：最小化依赖，核心仅需openpyxl+pandas
@@ -63,7 +64,7 @@ print(preview['sheets'][0]['preview'])
 
 ### MCP工具使用（AI智能体）
 
-配置Claude Desktop（`~/Library/Application Support/Claude/claude_desktop_config.json`）：
+配置 Cursor 或 Claude Desktop（`~/.cursor/mcp.json` 或 `~/Library/Application Support/Claude/claude_desktop_config.json`）：
 
 ```json
 {
@@ -72,7 +73,7 @@ print(preview['sheets'][0]['preview'])
       "command": "python",
       "args": [
         "-u",
-        "/path/to/TableParser/table_parser/mcp_server.py"
+        "/path/to/TableParser/start_mcp_server.py"
       ],
       "env": {
         "PYTHONPATH": "/path/to/TableParser"
@@ -82,15 +83,35 @@ print(preview['sheets'][0]['preview'])
 }
 ```
 
-然后在Claude中：
+**智能自动保存（v1.1 新功能）**：
 
 ```
-用户: "帮我分析 /data/sales_2024.xlsx 这个文件"
+用户: "帮我解析 /data/sales_2024.xlsx"
 
-Claude会自动：
-1. 调用 analyze_complexity 分析复杂度
-2. 调用 parse_table 解析文件
-3. 返回格式化的分析结果
+AI会自动：
+1. 调用 parse_table 解析文件
+2. 自动保存到 /data/sales_2024.html（或.md）
+3. 只返回元数据（文件路径、大小等）
+4. 节省 90%-99% token消耗 🎉
+```
+
+**三种使用方式**：
+
+```python
+# 方式1：自动保存（默认，推荐）
+parse_table(file_path="/data/sales.xlsx")
+# → 自动保存到 /data/sales.html，返回元数据
+
+# 方式2：指定保存路径
+parse_table(
+    file_path="/data/sales.xlsx",
+    output_path="/output/report.html"
+)
+# → 保存到指定位置，返回元数据
+
+# 方式3：Base64输入（临时处理）
+parse_table(file_content_base64="...")
+# → 返回完整内容（适合临时数据）
 ```
 
 ## 📊 复杂度评估算法
@@ -255,23 +276,32 @@ print(f"成功: {result['succeeded']}, 失败: {result['failed']}")
 | 中表 (1000-10000行) | <5秒 |
 | 大表 (>10000行) | <30秒 |
 
-## 🛠️ 开发
+## 🛠️ 开发与测试
 
-### 运行测试
+### 快速测试
 
 ```bash
-pytest tests/
+# 测试导入
+python -c "from table_parser import TableParser; print('✅ 导入成功')"
+
+# 测试解析
+python -c "from table_parser import TableParser; p = TableParser(); r = p.parse('tests/test_data.xlsx'); print(f'✅ 解析成功: {r.output_format}')"
 ```
 
 ### 启动MCP服务器
 
 ```bash
-# stdio模式（推荐，用于Claude等）
-python table_parser/mcp_server.py
+# stdio模式（推荐，用于 Cursor/Claude）
+python start_mcp_server.py
 
 # HTTP模式（用于独立服务）
-# 修改mcp_server.py最后一行为：
-# mcp.run(transport="http", host="0.0.0.0", port=8765)
+python start_mcp_server.py --http --port 8765
+```
+
+### 完整测试
+
+```bash
+pytest tests/
 ```
 
 ## 🤝 贡献
@@ -290,6 +320,20 @@ Apache License 2.0
 - [MinerU](https://github.com/opendatalab/MinerU) - 文档处理架构
 - [FastMCP](https://github.com/jlowin/fastmcp) - MCP服务器框架
 
+## 📦 版本历史
+
+### v1.1.0 (2025-11-18)
+- ✨ **智能自动保存**：默认保存到Excel同目录，节省90%-99% token
+- 📁 自定义保存路径支持
+- 💾 自动根据复杂度选择扩展名（.html/.md）
+- 🏷️ 返回 `auto_generated` 标记
+
+### v1.0.0 (2025-11-17)
+- 🎉 初始版本发布
+- 🧠 智能复杂度分析
+- 🎯 自适应格式输出
+- 💡 MCP工具支持
+
 ## 📞 联系方式
 
 - 项目主页：[GitHub Repository]
@@ -298,5 +342,5 @@ Apache License 2.0
 
 ---
 
-**TableParser** - 让表格解析更智能、更简单！ 🚀
+**TableParser v1.1** - 让表格解析更智能、更简单！ 🚀
 

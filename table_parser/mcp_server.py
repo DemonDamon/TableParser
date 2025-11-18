@@ -94,7 +94,8 @@ def parse_table(
     file_content_base64: Optional[str] = None,
     output_format: str = "auto",
     chunk_rows: int = 256,
-    clean_illegal_chars: bool = True
+    clean_illegal_chars: bool = True,
+    output_path: Optional[str] = None
 ) -> dict:
     """
     解析Excel或CSV表格文件
@@ -105,20 +106,31 @@ def parse_table(
         output_format: 输出格式 (auto/markdown/html)
         chunk_rows: HTML分块行数
         clean_illegal_chars: 是否清理非法字符
+        output_path: 输出文件路径（可选）
+            - 如果提供：保存到指定路径
+            - 如果不提供且有file_path：默认保存到Excel同目录（自动节省token）
+            - 如果不提供且是Base64输入：返回完整内容
         
     Returns:
-        解析结果字典
+        解析结果字典。保存文件时只返回元数据，不返回完整内容（大幅节省token）
     
     Examples:
-        # 解析本地文件
+        # 示例1：自动保存（推荐，自动节省token）
+        # 会保存到 /path/to/data.html 或 data.md（取决于复杂度）
         result = parse_table(file_path="/path/to/data.xlsx")
         
-        # 解析Base64内容
+        # 示例2：指定保存路径
+        result = parse_table(
+            file_path="/path/to/data.xlsx",
+            output_path="/another/path/result.html"
+        )
+        
+        # 示例3：Base64输入（返回完整内容）
         with open("data.xlsx", "rb") as f:
             content_b64 = base64.b64encode(f.read()).decode()
         result = parse_table(file_content_base64=content_b64)
         
-        # 强制HTML输出
+        # 示例4：强制HTML格式
         result = parse_table(
             file_path="/path/to/data.xlsx",
             output_format="html"
@@ -166,6 +178,116 @@ def parse_table(
             clean_illegal_chars=clean_illegal_chars
         )
         
+        # 确定输出路径
+        # 1. 如果明确提供了 output_path，使用它
+        # 2. 如果没有提供 output_path，但有 file_path，默认保存到同目录
+        # 3. 如果都没有（Base64输入），则返回完整内容
+        actual_output_path = output_path
+        
+        if not actual_output_path and file_path:
+            # 自动生成输出路径：同目录，扩展名改为 .html 或 .md
+            source_file = Path(file_path)
+            if result.output_format == "markdown":
+                actual_output_path = str(source_file.with_suffix('.md'))
+            else:  # HTML
+                actual_output_path = str(source_file.with_suffix('.html'))
+            logger.info(f"未指定输出路径，自动保存到: {actual_output_path}")
+        
+        # 如果有输出路径（明确指定或自动生成），保存文件并只返回元数据
+        if actual_output_path:
+            try:
+                # 验证输出路径安全性
+                if not validate_file_path(actual_output_path):
+                    return {
+                        "success": False,
+                        "error": f"输出路径不在允许的目录中: {actual_output_path}"
+                    }
+                
+                output_file = Path(actual_output_path)
+                
+                # 确保目录存在
+                output_file.parent.mkdir(parents=True, exist_ok=True)
+                
+                # 根据格式保存文件
+                if result.output_format == "markdown":
+                    # Markdown格式直接保存
+                    output_file.write_text(result.content, encoding="utf-8")
+                    logger.info(f"Markdown内容已保存到: {actual_output_path}")
+                    
+                else:  # HTML格式
+                    # 构建完整的HTML文档
+                    html_parts = []
+                    html_parts.append('<!DOCTYPE html>')
+                    html_parts.append('<html lang="zh-CN">')
+                    html_parts.append('<head>')
+                    html_parts.append('    <meta charset="UTF-8">')
+                    html_parts.append('    <meta name="viewport" content="width=device-width, initial-scale=1.0">')
+                    html_parts.append(f'    <title>{Path(file_path).stem if file_path else "表格解析结果"}</title>')
+                    html_parts.append('    <style>')
+                    html_parts.append('        body { font-family: "Microsoft YaHei", Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }')
+                    html_parts.append('        .container { max-width: 1400px; margin: 0 auto; background-color: white; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }')
+                    html_parts.append('        h1 { color: #333; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }')
+                    html_parts.append('        .metadata { background-color: #f0f7ff; padding: 15px; border-radius: 5px; margin: 20px 0; }')
+                    html_parts.append('        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }')
+                    html_parts.append('        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; vertical-align: top; }')
+                    html_parts.append('        th { background-color: #4a90e2; color: white; font-weight: bold; }')
+                    html_parts.append('        tbody tr:nth-child(even) { background-color: #f9f9f9; }')
+                    html_parts.append('        tbody tr:hover { background-color: #e8f4ff; }')
+                    html_parts.append('        td[rowspan], td[colspan] { background-color: #fff3cd; font-weight: 500; }')
+                    html_parts.append('    </style>')
+                    html_parts.append('</head>')
+                    html_parts.append('<body>')
+                    html_parts.append('    <div class="container">')
+                    html_parts.append(f'        <h1>{Path(file_path).stem if file_path else "表格解析结果"}</h1>')
+                    
+                    # 添加元数据信息
+                    if result.metadata:
+                        html_parts.append('        <div class="metadata">')
+                        html_parts.append('            <h3>📋 文件信息</h3>')
+                        html_parts.append('            <ul>')
+                        html_parts.append(f'                <li><strong>工作表数量：</strong>{result.metadata.get("sheets", 0)}个</li>')
+                        html_parts.append(f'                <li><strong>总行数：</strong>{result.metadata.get("total_rows", 0)}行</li>')
+                        html_parts.append(f'                <li><strong>总列数：</strong>{result.metadata.get("total_cols", 0)}列</li>')
+                        if result.metadata.get("merged_cells_count"):
+                            html_parts.append(f'                <li><strong>合并单元格：</strong>{result.metadata["merged_cells_count"]}个</li>')
+                        if result.complexity_score:
+                            html_parts.append(f'                <li><strong>复杂度评分：</strong>{result.complexity_score.total_score:.1f}/100（{result.complexity_score.level}）</li>')
+                        html_parts.append('            </ul>')
+                        html_parts.append('        </div>')
+                    
+                    # 添加表格内容
+                    for i, table_html in enumerate(result.content, 1):
+                        if len(result.content) > 1:
+                            html_parts.append(f'        <h2>表格 {i}</h2>')
+                        html_parts.append(f'        {table_html}')
+                    
+                    html_parts.append('    </div>')
+                    html_parts.append('</body>')
+                    html_parts.append('</html>')
+                    
+                    output_file.write_text('\n'.join(html_parts), encoding="utf-8")
+                    logger.info(f"HTML内容已保存到: {actual_output_path}")
+                
+                # 返回元数据和文件路径，不返回完整内容
+                return {
+                    "success": True,
+                    "output_format": result.output_format,
+                    "saved_to": str(actual_output_path),
+                    "file_size": output_file.stat().st_size,
+                    "complexity_score": result.complexity_score.to_dict() if result.complexity_score else None,
+                    "metadata": result.metadata,
+                    "message": f"✅ 文件已成功保存到 {actual_output_path}（{output_file.stat().st_size / 1024:.1f} KB）",
+                    "auto_generated": output_path is None  # 标记是否为自动生成的路径
+                }
+                
+            except Exception as e:
+                logger.error(f"保存文件失败: {e}")
+                return {
+                    "success": False,
+                    "error": f"保存文件失败: {e}"
+                }
+        
+        # 没有提供输出路径，返回完整内容
         return result.to_dict()
         
     except Exception as e:
