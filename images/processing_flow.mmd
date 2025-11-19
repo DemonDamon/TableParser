@@ -1,0 +1,21 @@
+graph TD
+    A[用户请求] --> B(TableParser.parse)
+    B --> C{FileLoader.load}
+    C -->|openpyxl/pandas/calamine| D[Workbook对象]
+    D --> E{output_format == auto?}
+    E -- Yes --> F[ComplexityAnalyzer.analyze]
+    F --> G[计算7维度得分]
+    G --> H{总分 > 60 或 内容丰富?}
+    H -- Yes --> I[推荐 HTML]
+    H -- No --> J[推荐 Markdown]
+    E -- No --> K[使用用户指定格式]
+    I --> L[FormatConverter.to_html]
+    J --> M[FormatConverter.to_markdown]
+    K --> L
+    K --> M
+    L --> N[生成 HTML 内容]
+    M --> O[生成 Markdown 内容]
+    N --> P[ParseResult]
+    O --> P
+    P --> Q[返回结果]
+

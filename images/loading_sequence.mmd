@@ -1,0 +1,35 @@
+sequenceDiagram
+    participant User
+    participant Loader as FileLoader
+    participant OpenPyXL
+    participant Pandas
+    participant Calamine
+
+    User->>Loader: load(file_path)
+    Loader->>Loader: 检测文件类型
+    
+    alt is Excel
+        Loader->>OpenPyXL: load_workbook()
+        alt Success
+            OpenPyXL-->>Loader: Workbook
+        else Failure
+            Loader->>Pandas: read_excel(engine='openpyxl')
+            alt Success
+                Pandas-->>Loader: DataFrame -> Workbook
+            else Failure
+                Loader->>Pandas: read_excel(engine='calamine')
+                alt Success
+                    Calamine-->>Pandas: Data
+                    Pandas-->>Loader: DataFrame -> Workbook
+                else Failure
+                    Loader-->>User: Raise FileLoadError
+                end
+            end
+        end
+    else is CSV
+        Loader->>Pandas: read_csv()
+        Pandas-->>Loader: DataFrame -> Workbook
+    end
+    
+    Loader-->>User: Workbook Object
+
