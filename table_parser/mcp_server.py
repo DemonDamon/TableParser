@@ -93,7 +93,7 @@ def parse_table(
     file_path: Optional[str] = None,
     file_content_base64: Optional[str] = None,
     output_format: str = "auto",
-    chunk_rows: int = 256,
+    chunk_rows: int = 0,
     clean_illegal_chars: bool = True,
     output_path: Optional[str] = None,
     extract_images: bool = True,
@@ -107,7 +107,7 @@ def parse_table(
         file_path: 文件路径（优先使用）
         file_content_base64: Base64编码的文件内容（file_path不存在时使用）
         output_format: 输出格式 (auto/markdown/html)
-        chunk_rows: HTML分块行数
+        chunk_rows: HTML分块行数（默认0不分块，输出完整表格。设置为256/512等正数可启用分块）
         clean_illegal_chars: 是否清理非法字符
         output_path: 输出文件路径（可选）
             - 如果提供：保存到指定路径
@@ -241,8 +241,8 @@ def parse_table(
                     html_parts.append('        .container { max-width: 1400px; margin: 0 auto; background-color: white; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }')
                     html_parts.append('        h1 { color: #333; border-bottom: 3px solid #0066cc; padding-bottom: 10px; }')
                     html_parts.append('        .metadata { background-color: #f0f7ff; padding: 15px; border-radius: 5px; margin: 20px 0; }')
-                    html_parts.append('        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }')
-                    html_parts.append('        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; vertical-align: top; }')
+                    html_parts.append('        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; table-layout: auto; }')
+                    html_parts.append('        th, td { border: 1px solid #ddd; padding: 12px 8px; text-align: left; vertical-align: top; word-wrap: break-word; word-break: break-all; white-space: normal; overflow-wrap: break-word; }')
                     html_parts.append('        th { background-color: #4a90e2; color: white; font-weight: bold; }')
                     html_parts.append('        tbody tr:nth-child(even) { background-color: #f9f9f9; }')
                     html_parts.append('        tbody tr:hover { background-color: #e8f4ff; }')

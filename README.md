@@ -349,7 +349,7 @@ parse_table(file_content_base64="...")
 │  │ 1. 遍历所有sheet                                │    │
 │  │ 2. 构建<table>标签                              │    │
 │  │ 3. 处理合并单元格 (rowspan/colspan)             │    │
-│  │ 4. 分块处理大表 (chunk_rows=256)               │    │
+│  │ 4. 默认输出完整表格 (chunk_rows=0)             │    │
 │  │ 5. 可选样式保留 (preserve_styles=True)         │    │
 │  │                                                 │    │
 │  │ 调用工具组件:                                   │    │
@@ -417,12 +417,18 @@ score > 60        → complex  → HTML (强制)
 content_richness ≥ 40 (有图片/样式) → 强制HTML
 ```
 
-**4. 分块处理大表（FormatConverter）**
+**4. 完整表格输出（FormatConverter）**
 ```
-大表 (>256行) → 分块处理 → 多个HTML表格
-- 避免内存溢出
+默认行为：输出完整长表格（不分块）
+- 一个 Sheet 生成一个完整 HTML 表格
+- 保持表格连续性，便于查看和打印
+- 所有行从头到尾完整显示
+
+可选分块处理（大表优化）：
+- 可启用：chunk_rows=256 每256行分块一次
+- 避免超大表格内存溢出
 - 支持流式输出
-- 提升解析速度
+- 可配置：chunk_rows=512 调整分块大小
 ```
 
 ## 复杂度评估算法
@@ -627,11 +633,33 @@ if "aggregate_formulas" in result.metadata:
     for formula in result.metadata['aggregate_formulas']:
         print(f"  {formula['cell']}: {formula['description']}")
 
-# 4. 完整配置示例
+# 4. 处理大表格 - 分块控制
+# 默认情况下，输出完整的长表格（不分块），一个sheet一个完整HTML表格
+result = parser.parse(
+    "large_table.xlsx",
+    output_format="html",
+    # chunk_rows=0 是默认值，可以省略
+)
+
+# 如果表格非常大（如>10000行），可以启用分块处理避免内存溢出
+result_chunked = parser.parse(
+    "very_large_table.xlsx", 
+    output_format="html",
+    chunk_rows=256,              # 每256行分块一次，生成多个表格
+)
+
+# 自定义分块大小
+result_custom = parser.parse(
+    "large_table.xlsx",
+    output_format="html", 
+    chunk_rows=512,              # 每512行分块一次
+)
+
+# 5. 完整配置示例
 result = parser.parse(
     "complex_report.xlsx",
     output_format="html",
-    chunk_rows=512,              # HTML分块大小
+    chunk_rows=0,                 # 默认0（完整表格），可设置为256/512启用分块
     clean_illegal_chars=True,     # 清理非法字符
     preserve_styles=True,         # ✅ 保留样式
     include_empty_rows=False,     # 不包含空行

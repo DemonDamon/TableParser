@@ -52,7 +52,7 @@ class TableParser:
             file_path: 文件路径或二进制内容
             output_format: 输出格式 (auto/markdown/html)
             **options: 其他选项
-                - chunk_rows: HTML分块行数 (默认256)
+                - chunk_rows: HTML分块行数 (默认0，不分块。设置为正数可以分块处理大表)
                 - encoding: CSV编码 (默认auto)
                 - clean_illegal_chars: 清理非法字符 (默认True)
                 - preserve_styles: 保留样式 (默认False)
@@ -77,7 +77,7 @@ class TableParser:
             # 构建解析选项
             parse_options = ParseOptions(
                 output_format=output_format,
-                chunk_rows=options.get("chunk_rows", 256),
+                chunk_rows=options.get("chunk_rows", 0),
                 encoding=options.get("encoding", None),
                 clean_illegal_chars=options.get("clean_illegal_chars", True),
                 preserve_styles=options.get("preserve_styles", False),

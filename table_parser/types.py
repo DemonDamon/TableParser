@@ -22,8 +22,8 @@ class ParseOptions:
     output_format: OutputFormat = "auto"
     """输出格式: auto(自动选择) / markdown / html"""
     
-    chunk_rows: int = 256
-    """HTML分块大小（行数）"""
+    chunk_rows: int = 0
+    """HTML分块大小（行数），默认为0（不分块，输出完整表格）。设置为正数可以分块处理大表"""
     
     encoding: Optional[str] = None
     """CSV编码（None表示自动检测）"""

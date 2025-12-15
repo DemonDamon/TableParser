@@ -113,7 +113,7 @@ class FormatConverter:
     def to_html(
         self,
         workbook: Workbook,
-        chunk_rows: int = 256,
+        chunk_rows: int = 0,
         preserve_styles: bool = False,
         include_empty_rows: bool = False,
         excel_path: Optional[str] = None,
@@ -131,6 +131,8 @@ class FormatConverter:
         Args:
             workbook: openpyxl Workbook对象
             chunk_rows: 每个HTML表格的最大行数（分块处理）
+                       默认为 0（不分块，输出完整表格）
+                       设置为正数（如256）可以分块处理大表
             preserve_styles: 是否保留样式（暂未实现）
             include_empty_rows: 是否包含空行
             **options: 其他选项
@@ -142,7 +144,14 @@ class FormatConverter:
             ConversionError: 转换失败时抛出
         """
         try:
-            logger.info("开始转换为HTML格式...")
+            logger.info(f"开始转换为HTML格式... chunk_rows={chunk_rows}")
+            
+            # 如果chunk_rows <= 0，表示不分块，设置为一个非常大的值
+            if chunk_rows <= 0:
+                chunk_rows = 999999999
+                logger.info("chunk_rows <= 0，不分块，输出完整表格")
+            else:
+                logger.info(f"chunk_rows > 0，将分块处理，每块 {chunk_rows} 行")
             
             # 如果提供了Excel路径，解析sharedStrings以获取富文本格式
             if excel_path:
